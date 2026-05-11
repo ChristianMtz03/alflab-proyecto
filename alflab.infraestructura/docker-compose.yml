@@ -1,0 +1,140 @@
+version: '3.8'
+
+networks:
+  alflab-network:
+    driver: bridge
+
+services:
+
+  # ─── BASE DE DATOS PRINCIPAL (Master) ───────────────────────────
+  mysql-master:
+    image: mysql:8.0
+    container_name: alflab-mysql-master
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE_CATALOGOS}
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_master_data:/var/lib/mysql
+      - ./mysql/master/my.cnf:/etc/mysql/conf.d/my.cnf
+      - ./init:/docker-entrypoint-initdb.d
+    networks:
+      - alflab-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pAlfLab2026!"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command:
+      --server-id=1 --log-bin=mysql-bin --binlog-format=ROW
+
+  # ─── BASE DE DATOS RÉPLICA (Slave) ──────────────────────────────
+  mysql-replica:
+    image: mysql:8.0
+    container_name: alflab-mysql-replica
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_replica_data:/var/lib/mysql
+      - ./mysql/replica/my.cnf:/etc/mysql/conf.d/my.cnf
+    networks:
+      - alflab-network
+    command: --server-id=2 --relay-log=mysql-relay-bin --read-only=1
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pAlfLab2026!"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── CONFIGURADOR DE RÉPLICA ─────────────────────────────────────
+  replica-setup:
+    image: mysql:8.0
+    container_name: alflab-replica-setup
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - ./mysql/replica/setup-replica.sh:/setup-replica.sh
+    networks:
+      - alflab-network
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+      mysql-replica:
+        condition: service_healthy
+    command: bash /setup-replica.sh
+    restart: "no"
+
+  # ─── CRON (Segundo Plano) ────────────────────────────────────────
+  cron:
+    build:
+      context: ./cron
+      dockerfile: Dockerfile
+    container_name: alflab-cron
+    restart: unless-stopped
+    environment:
+      - MASTER_HOST=alflab-mysql-master
+      - MASTER_PORT=3306
+      - REPLICA_HOST=alflab-mysql-replica
+      - REPLICA_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD}
+    networks:
+      - alflab-network
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+
+  # ─── API .NET (Catálogos) ────────────────────────────────────────
+  api-catalogos:
+    build:
+      context: ../../alflab.catalogos.api
+      dockerfile: Dockerfile
+    container_name: alflab-api-catalogos
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Docker
+      - ASPNETCORE_URLS=http://+:8080
+    ports:
+      - "5000:8080"
+    networks:
+      - alflab-network
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+
+  # ─── API NestJS (Operaciones) ────────────────────────────────────
+  api-operaciones:
+    build:
+      context: ../../alflab.operaciones.api/alflab-operaciones-api
+      dockerfile: Dockerfile
+    container_name: alflab-api-operaciones
+    restart: unless-stopped
+    environment:
+      - DB_HOST=${OPERACIONES_DB_HOST}
+      - DB_PORT=${OPERACIONES_DB_PORT}
+      - DB_USER=${OPERACIONES_DB_USER}
+      - DB_PASSWORD=${OPERACIONES_DB_PASSWORD}
+      - DB_NAME=${OPERACIONES_DB_NAME}
+      - DB_REPLICA_HOST=${OPERACIONES_DB_REPLICA_HOST}
+      - DB_REPLICA_PORT=${OPERACIONES_DB_REPLICA_PORT}
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=3000
+    ports:
+      - "3000:3000"
+    networks:
+      - alflab-network
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+
+volumes:
+  mysql_master_data:
+  mysql_replica_data:

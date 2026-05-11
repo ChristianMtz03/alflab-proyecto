@@ -1,0 +1,6 @@
+@AlfLab.Api_HostAddress = http://localhost:5281
+
+GET {{AlfLab.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
