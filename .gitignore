@@ -1,0 +1,5 @@
+alflab.infraestructura/.env
+alflab.operaciones.api/alflab-operaciones-api/node_modules/
+alflab.operaciones.api/alflab-operaciones-api/dist/
+alflab.catalogos.api/alflab.catalogos.Api/bin/
+alflab.catalogos.api/alflab.catalogos.Api/obj/
