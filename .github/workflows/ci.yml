@@ -9,6 +9,7 @@ on:
 env:
   App_name: AlfLab Proyecto
   Dotnet_Version: "8.0"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
@@ -47,7 +48,7 @@ jobs:
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Instalar dependencias API Operaciones
         working-directory: alflab.operaciones.api/alflab-operaciones-api
