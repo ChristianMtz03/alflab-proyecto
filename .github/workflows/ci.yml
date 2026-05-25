@@ -1,0 +1,58 @@
+name: AlfLab CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  App_name: AlfLab Proyecto
+  Dotnet_Version: "8.0"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ─── Información del proyecto ───────────────────────────────────────────
+      - name: Mostrar Variables del Proyecto
+        env:
+          TipoEjecucion: CI Build
+        run: |
+          echo "Aplicacion: $App_name"
+          echo "Version de framework: $Dotnet_Version"
+          echo "Tipo de ejecucion: $TipoEjecucion"
+          echo "Mostrar rama de liberacion: ${{ github.ref }}"
+
+      # ─── Checkout del código ────────────────────────────────────────────────
+      - name: Revision de codigo
+        uses: actions/checkout@v4
+
+      # ─── Build API .NET 8 ───────────────────────────────────────────────────
+      - name: Configurar .NET ${{ env.Dotnet_Version }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.Dotnet_Version }}
+
+      - name: Restaurar dependencias API Catalogos
+        working-directory: alflab.catalogos.api
+        run: dotnet restore AlfLab.Catalogos.Api.sln
+
+      - name: Build API Catalogos (.NET)
+        working-directory: alflab.catalogos.api
+        run: dotnet build AlfLab.Catalogos.Api.sln --no-restore --configuration Release
+
+      # ─── Build API NestJS ───────────────────────────────────────────────────
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Instalar dependencias API Operaciones
+        working-directory: alflab.operaciones.api/alflab-operaciones-api
+        run: npm install
+
+      - name: Build API Operaciones (NestJS)
+        working-directory: alflab.operaciones.api/alflab-operaciones-api
+        run: npm run build
