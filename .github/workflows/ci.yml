@@ -12,11 +12,16 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  # ─── Llamada al workflow de variables ─────────────────────────────────────
+  call_env:
+    uses: ./.github/workflows/env-variables.yml
+
   build:
     runs-on: ubuntu-latest
+    needs: call_env
 
     steps:
-      # ─── Información del proyecto ───────────────────────────────────────────
+      # ─── Información del proyecto ──────────────────────────────────────────
       - name: Mostrar Variables del Proyecto
         env:
           TipoEjecucion: CI Build
@@ -26,11 +31,20 @@ jobs:
           echo "Tipo de ejecucion: $TipoEjecucion"
           echo "Mostrar rama de liberacion: ${{ github.ref }}"
 
-      # ─── Checkout del código ────────────────────────────────────────────────
+      # ─── Checkout del código ───────────────────────────────────────────────
       - name: Revision de codigo
         uses: actions/checkout@v4
 
-      # ─── Build API .NET 8 ───────────────────────────────────────────────────
+      # ─── Reemplazar cadena de conexión en appsettings.json ─────────────────
+      - name: Reemplazar appsettings
+        shell: pwsh
+        run: |
+          $json = Get-Content "alflab.catalogos.api/AlfLab.Catalogos.Api/appsettings.json" | ConvertFrom-Json
+          $json.ConnectionStrings.MySqlConnection = "${{ secrets.DB_CONNECTION }}"
+          $json | ConvertTo-Json -Depth 10 | Set-Content "alflab.catalogos.api/AlfLab.Catalogos.Api/appsettings.json"
+          echo $json
+
+      # ─── Build API .NET 8 ──────────────────────────────────────────────────
       - name: Configurar .NET ${{ env.Dotnet_Version }}
         uses: actions/setup-dotnet@v4
         with:
@@ -44,7 +58,7 @@ jobs:
         working-directory: alflab.catalogos.api
         run: dotnet build AlfLab.Catalogos.Api.sln --no-restore --configuration Release
 
-      # ─── Build API NestJS ───────────────────────────────────────────────────
+      # ─── Build API NestJS ──────────────────────────────────────────────────
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:

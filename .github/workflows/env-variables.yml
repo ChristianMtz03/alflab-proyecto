@@ -1,0 +1,37 @@
+name: AlfLab ENV Variables
+
+on:
+  workflow_call:
+
+env:
+  App_name: AlfLab Proyecto
+  Dotnet_Version: "8.0"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      TipoEjecucion: 'Validacion de variables'
+
+    steps:
+      # ─── Mostrar variables de entorno ───────────────────────────────────────
+      - name: Mostrar Variables Todas
+        env:
+          mensaje: Hola soy una variable
+        run: |
+          echo "Aplicacion: $App_name"
+          echo "Version de framework: $Dotnet_Version"
+          echo "Variable local: $TipoEjecucion"
+          echo $mensaje
+
+      # ─── Crear y usar variable dinámica ─────────────────────────────────────
+      - name: Crear Variable
+        run: echo "framework=NET.8" >> $GITHUB_ENV
+
+      - name: Usar Variable
+        run: echo $framework
+
+      # ─── Variable del repositorio ────────────────────────────────────────────
+      - name: Variables del repositorio
+        run: echo ${{ vars.PROYECT_DESCRIPTION }}
