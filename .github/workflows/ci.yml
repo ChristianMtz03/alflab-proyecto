@@ -71,3 +71,38 @@ jobs:
       - name: Build API Operaciones (NestJS)
         working-directory: alflab.operaciones.api/alflab-operaciones-api
         run: npm run build
+
+  # ─── Docker: construir y publicar imágenes en GHCR ────────────────────────
+  docker:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Revision de codigo
+        uses: actions/checkout@v4
+
+      # ─── Login a GitHub Container Registry ────────────────────────────────
+      - name: Login a GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ─── Imagen API Catalogos (.NET) ───────────────────────────────────────
+      - name: Build y Push imagen API Catalogos
+        uses: docker/build-push-action@v5
+        with:
+          context: ./alflab.catalogos.api
+          file: ./alflab.catalogos.api/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/alflab-catalogos-api:latest
+
+      # ─── Imagen API Operaciones (NestJS) ───────────────────────────────────
+      - name: Build y Push imagen API Operaciones
+        uses: docker/build-push-action@v5
+        with:
+          context: ./alflab.operaciones.api/alflab-operaciones-api
+          file: ./alflab.operaciones.api/alflab-operaciones-api/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/alflab-operaciones-api:latest
